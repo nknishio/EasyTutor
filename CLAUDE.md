@@ -111,6 +111,31 @@ via `useResponsive()` (`isCompact`, `select(...)`); theme via `useTheme()`.
 (`integrations/calendar/`). Per-session/default alerts flow through `CalendarEventDraft.alarms`
 → provider (`relativeOffset` / ICS `VALARM`).
 
+## Device sync (optional, off until configured)
+
+Moves one whole `BackupData` snapshot through a KV-backed `/sync/:space` endpoint in
+`worker.js` and merges it row by row. No new tables and no server logic beyond get/put.
+
+- `domain/services/syncMerge.ts` — **pure** last-write-wins merge on `id` + `updated_at`.
+  Tombstones are ordinary rows (newer `deleted_at` wins), which is why `data/backup.ts`
+  dumps soft-deleted rows. Ties keep local.
+- `data/sync/syncEngine.ts` — pull → merge → `restoreBackup(merged)` → push. **Always
+  pushes the full snapshot**, never a delta; that is what makes it safe over
+  eventually-consistent KV (a stale overwrite is re-repaired by the other device's next
+  sync). `If-Match` gives optimistic concurrency, retried up to 3×.
+- **Auto-push** comes from `data/repositories/withWriteNotifications.ts`, a Proxy applied
+  once in `data/index.ts` that emits on the `shared/utils/dataChangeBus` after any
+  successful write. Don't add per-action signalling — it's covered by construction.
+- `store/syncStore.ts` debounces pushes (2s); `app/providers/SyncProvider.tsx` owns the
+  pull timers. After a pull that changed rows, `reloadAllStores()` (`store/reset.ts`)
+  re-reads, including the session-keyed caches, so open screens don't show stale data.
+- Config lives **per account** in the accounts registry `meta` table via
+  `accountsDb.getMeta/setMeta` — never in the tutoring DB, which would sync the config
+  itself to the other device. `syncStore` is therefore deliberately **not** in
+  `resetAllStores()`; `authStore.activate()` calls `useSyncStore.init(accountId)` instead.
+
+`sync_status`/`server_rev` are still written-but-unread; the merge uses `updated_at` only.
+
 ## Gotchas (these have bitten us repeatedly)
 
 - **Form modals are mounted once and toggled `visible`** — so `useState(initialFromProps)`
@@ -120,7 +145,13 @@ via `useResponsive()` (`isCompact`, `select(...)`); theme via `useTheme()`.
   (Session/Assignment/Payment/Template modals). Always add the re-sync effect.
 - **Web SQLite headers:** `expo-sqlite` on web (WASM) generally needs cross-origin isolation
   (`COOP: same-origin` + `COEP: require-corp`). GitHub Pages can't set these — deploy web to
-  a host that can (Cloudflare Pages / Netlify). See `docs/DEPLOYMENT.md`.
+  a host that can (the bundled Cloudflare Worker / Netlify). See `docs/DEPLOYMENT.md`.
+- **`wrangler.jsonc` `assets` block is load-bearing.** Cloudflare serves static assets
+  *before* the Worker unless `run_worker_first: true`, and `env.ASSETS` only exists if
+  `binding: "ASSETS"` is declared. Missing either means `worker.js` never runs for page
+  loads, the isolation headers above are never applied, and the web app hangs on the login
+  screen with no error. `not_found_handling: "single-page-application"` is what makes a
+  hard reload on a client-side route (`/settings`) resolve instead of 404.
 - **Web nested-Pressable double-fire:** `DataTable` rows are `Pressable` (`onRowPress`); an
   in-row button can also bubble the row press on react-native-web. Be deliberate about
   in-row actions vs. row navigation.

@@ -11,6 +11,7 @@ import { reinitContainer } from '../app/di/container';
 import * as accounts from '../auth/accountsDb';
 import type { RegisterInput } from '../auth/accountsDb';
 import { resetAllStores } from './reset';
+import { useSyncStore } from './syncStore';
 import { err } from '../shared/utils/result';
 
 type AuthStatus = 'initializing' | 'unauthenticated' | 'authenticated';
@@ -44,6 +45,9 @@ export const useAuthStore = create<AuthState>((set) => {
     resetAllStores();
     await reinitContainer(account.dbName);
     await accounts.setActiveAccountId(account.id);
+    // Sync config is per-account and lives outside resetAllStores (see store/reset.ts),
+    // so re-point it at the incoming account rather than clearing it.
+    await useSyncStore.getState().init(account.id);
     set({ status: 'authenticated', currentAccount: account, error: null });
   };
 
@@ -100,6 +104,7 @@ export const useAuthStore = create<AuthState>((set) => {
 
     logout: async () => {
       await accounts.setActiveAccountId(null);
+      await useSyncStore.getState().init(null);
       resetAllStores();
       set({ status: 'unauthenticated', currentAccount: null, error: null });
     },

@@ -7,6 +7,7 @@ import { Button, HStack, Text, VStack } from '../../../shared/ui';
 import { useBackupStore } from '../../../store/backupStore';
 import { useAuthStore, useSettingsStore } from '../../../store';
 import { pickBackupFileOnWeb } from '../../../shared/utils/backupFile';
+import { SyncSection } from '../components/SyncSection';
 import type { ThemePreference } from '../../../domain/types';
 import { Select } from '../../../shared/ui';
 import type { RootStackParamList } from '../../../app/navigation/types';
@@ -106,6 +107,8 @@ export const SettingsScreen = (_: Props) => {
             onChange={(v) => void setTheme(v)}
           />
         </VStack>
+
+        <SyncSection />
 
         <VStack gap={theme.space.lg}>
           <Text variant="title">Data Backup</Text>

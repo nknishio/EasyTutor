@@ -12,6 +12,7 @@ import { Spinner } from '../../shared/ui/feedback';
 import { useAuthStore } from '../../store';
 import { LoginScreen } from '../../features/auth/screens/LoginScreen';
 import { RegisterScreen } from '../../features/auth/screens/RegisterScreen';
+import { SyncProvider } from './SyncProvider';
 
 export const AuthGate = ({ children }: { children: ReactNode }) => {
   const theme = useTheme();
@@ -39,5 +40,7 @@ export const AuthGate = ({ children }: { children: ReactNode }) => {
     );
   }
 
-  return <>{children}</>;
+  // Sync only runs for a signed-in account — mounting it here keeps its timers off the
+  // login screen and tears them down on sign-out.
+  return <SyncProvider>{children}</SyncProvider>;
 };

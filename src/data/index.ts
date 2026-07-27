@@ -9,6 +9,7 @@ import type { Repositories } from '../domain/repositories';
 import { DatabaseClient, ExpoSqliteClient } from './db/client';
 import { runMigrations } from './db/migrations';
 import { createRepositories } from './repositories';
+import { withWriteNotifications } from './repositories/withWriteNotifications';
 import { seedDefaultTemplates } from './seed';
 
 export interface DataLayer {
@@ -27,7 +28,9 @@ export const initDataLayer = async (
   const db = await ExpoSqliteClient.open(databaseName);
   const schemaVersion = await runMigrations(db);
   await seedDefaultTemplates(db);
-  const repositories = createRepositories(db);
+  // Wrapped so every write announces itself on the data-change bus — that is what lets
+  // device sync push automatically instead of waiting for a manual trigger.
+  const repositories = withWriteNotifications(createRepositories(db));
   return { db, repositories, schemaVersion };
 };
 

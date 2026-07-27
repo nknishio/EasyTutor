@@ -1,20 +1,6 @@
 import type { DatabaseClient, BindValue } from './db/client';
 import type { BackupData } from '../domain/types/backup';
-import { BACKUP_FORMAT_VERSION } from '../domain/types/backup';
-
-// Restore order respects FK dependencies: parents before children.
-const BACKUP_TABLES = [
-  'settings',
-  'email_templates',
-  'students',
-  'sessions',
-  'assignments',
-  'checklist_items',
-  'payments',
-  'sat_scores',
-  'sat_skill_performance',
-  'calendar_links',
-] as const;
+import { BACKUP_FORMAT_VERSION, BACKUP_TABLES } from '../domain/types/backup';
 
 export const exportBackup = async (
   db: DatabaseClient,

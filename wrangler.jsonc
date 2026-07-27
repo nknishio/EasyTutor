@@ -7,9 +7,32 @@
     "enabled": true
   },
   "assets": {
-    "directory": "dist"
+    "directory": "dist",
+    // `binding` is what creates `env.ASSETS`; without it worker.js has nothing to fetch.
+    "binding": "ASSETS",
+    // Static assets are served BEFORE the Worker by default, which meant worker.js never
+    // ran for real page loads and its cross-origin isolation headers were never applied —
+    // leaving expo-sqlite's WASM without SharedArrayBuffer and the web app stuck on the
+    // login screen. Routing every request through the Worker first is what lets it add
+    // COOP/COEP to asset responses.
+    "run_worker_first": true,
+    // Client-side routes like /settings aren't files in dist/, so a hard reload on one
+    // used to 404 (or 500, before the binding above existed). Serve index.html and let
+    // the app's navigator resolve the path.
+    "not_found_handling": "single-page-application"
   },
   "compatibility_flags": [
     "nodejs_compat"
+  ],
+  // Backs the /sync endpoint (one JSON snapshot per sync space).
+  // The shared key clients authenticate with is NOT stored here — set it with
+  //   npx wrangler secret put SYNC_SECRET
+  // Until that secret exists, /sync returns 501 and the rest of the app is unaffected.
+  // To recreate the namespace from scratch: npx wrangler kv namespace create SYNC_KV
+  "kv_namespaces": [
+    {
+      "binding": "SYNC_KV",
+      "id": "73989ea6ea854f758e8fc6cab20ffdc4"
+    }
   ]
 }

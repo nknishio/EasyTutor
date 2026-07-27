@@ -8,4 +8,5 @@ export { useChecklistStore } from './checklistStore';
 export { useTemplatesStore } from './templatesStore';
 export { useAuthStore } from './authStore';
 export { useBackupStore } from './backupStore';
-export { resetAllStores } from './reset';
+export { useSyncStore } from './syncStore';
+export { resetAllStores, reloadAllStores } from './reset';

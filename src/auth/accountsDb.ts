@@ -120,24 +120,37 @@ export const authenticate = async (username: string, password: string): Promise<
   return ok(rowToAccount(row));
 };
 
-export const getActiveAccountId = async (): Promise<string | null> => {
+/**
+ * Read a device-local key/value setting.
+ *
+ * The `meta` table is the right home for anything that must NOT travel between devices:
+ * this database is never exported or synced, unlike the per-account tutoring DBs. Device
+ * sync keeps its endpoint and key here for exactly that reason — storing them in the
+ * tutoring DB would sync the config to the other device along with the data.
+ */
+export const getMeta = async (key: string): Promise<string | null> => {
   const d = await ensureDb();
   const row = await d.getFirst<{ value: string | null }>(
     `SELECT value FROM meta WHERE key = ?`,
-    [ACTIVE_KEY],
+    [key],
   );
   return row?.value ?? null;
 };
 
-export const setActiveAccountId = async (id: string | null): Promise<void> => {
+/** Write a device-local setting; `null` removes it. */
+export const setMeta = async (key: string, value: string | null): Promise<void> => {
   const d = await ensureDb();
-  if (id == null) {
-    await d.run(`DELETE FROM meta WHERE key = ?`, [ACTIVE_KEY]);
+  if (value == null) {
+    await d.run(`DELETE FROM meta WHERE key = ?`, [key]);
     return;
   }
   await d.run(
     `INSERT INTO meta (key, value) VALUES (?, ?)
      ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-    [ACTIVE_KEY, id],
+    [key, value],
   );
 };
+
+export const getActiveAccountId = (): Promise<string | null> => getMeta(ACTIVE_KEY);
+
+export const setActiveAccountId = (id: string | null): Promise<void> => setMeta(ACTIVE_KEY, id);
